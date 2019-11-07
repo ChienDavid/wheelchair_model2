@@ -51,7 +51,7 @@ class GoToPosture():
 class CollectInfo():
 	def __init__(self):
 		self.members = ["Chien", "Tin", "AhHyeon", "SuJin", "HyeonHoo", "SeongHyeon", "GyeongJin", "YoungLim", "JongWook Kim"]
-		self.destinations = ["kitchen", "living room", "bedroom", "bathroom"]
+		self.destinations = ["kitchen", "living room", "bedroom", "bathroom"] # bedroom and bathroom are not available yet due to the map.
 		self.quit = ["quit", "bye", "no", "nope"]
 		self.postures = ["up straight", "small incline", "large incline"]
 		self.position = {'x': 0.000, 'y': 0.000}
