@@ -1,0 +1,17 @@
+<launch>
+  <arg name="gui" default="true" />
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find wheelchair_description)/urdf/wheelchair.urdf.xacro" />
+
+  <!-- publish joint state -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="use_gui" value="$(arg gui)"/>
+  </node>
+
+  <!-- publish robot state -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+
+  <!-- rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find wheelchair_description)/rviz/test_wheelchair.rviz"/>
+
+</launch>

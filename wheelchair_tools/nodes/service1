@@ -1,0 +1,152 @@
+#! /usr/bin/env python
+import rospy
+import actionlib
+from actionlib_msgs.msg import *
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from geometry_msgs.msg import Pose, Point, Quaternion
+from std_msgs.msg import Float64
+
+class GoToPose():
+	def __init__(self):
+		self.goal_sent = False
+		rospy.on_shutdown(self.shutdown)
+		self.pose = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+		self.pose.wait_for_server(rospy.Duration(5))
+
+	def goto(self, pos, quat):
+		self.goal_sent = True
+		goal = MoveBaseGoal()
+		goal.target_pose.header.frame_id = 'odom'
+		goal.target_pose.header.stamp = rospy.Time.now()
+		goal.target_pose.pose = Pose(Point(pos['x'], pos['y'], 0.000), Quaternion(quat['r1'], quat['r2'], quat['r3'], quat['r4']))
+		self.pose.send_goal(goal)
+
+		success = self.pose.wait_for_result(rospy.Duration(1000))
+		state = self.pose.get_state()
+		result = False
+		if success and state == GoalStatus.SUCCEEDED:
+		     result = True
+		else:
+		     self.pose.cancel_goal()
+		self.goal_sent = False
+		return result
+
+	def shutdown(self):
+		if self.goal_sent:
+			self.pose.cancel_goal()
+		print "Mission completed\n"
+		#rospy.sleep(1)
+
+class GoToPosture():
+	def __init__(self):
+		self.pubBack = rospy.Publisher("/wheelchair_model/Seatback_JOINT_1_position_controller/command", Float64, queue_size=10)
+		self.pubFeet = rospy.Publisher("/wheelchair_model/Footrest_JOINT_1_position_controller/command", Float64, queue_size=10)
+
+	def setPosture(self, back, feet):
+		self.backValue = back
+		self.feetValue = feet
+		self.pubBack.publish(self.backValue)
+		self.pubFeet.publish(self.feetValue)
+
+class CollectInfo():
+	def __init__(self):
+		self.members = ["Chien", "Tin", "AhHyeon", "SuJin", "HyeonHoo", "SeongHyeon", "GyeongJin", "YoungLim", "JongWook Kim"]
+		self.destinations = ["kitchen", "living room", "bedroom", "bathroom"]
+		self.quit = ["quit", "bye", "no", "nope"]
+		self.postures = ["up straight", "small incline", "large incline"]
+		self.position = {'x': 0.000, 'y': 0.000}
+		self.quaternion = {'r1': 0.000, 'r2': 0.000, 'r3': 0.000, 'r4': 1.000}
+
+	def userInfo(self):
+		self.setUserName = raw_input("\nHi, I am a smart chair, what is your name? ")
+		self.getUserName = self.setUserName
+		if self.setUserName in self.members:
+			print "Welcome back, %s" %self.getUserName
+			print "I hope you are doing well."
+		else:
+			print "Nice to meet you, %s" %self.getUserName
+			print "I think this is the first time we meet."
+		return self.getUserName
+
+	def destinationInfo(self):
+		self.setDestination = raw_input("\nWhere would you like to go? ")
+		if self.setDestination in self.destinations:
+			self.getDestination = self.setDestination
+			print"Yes, you want to go to %s" %self.getDestination
+		elif self.setDestination in self.quit:
+			self.getDestination = "quit"
+			print "See you soon!"
+		else:
+			self.getDestination = "Invalid destination"
+			print "Invalid destination, please choose correct destination!"
+
+		if self.getDestination == "kitchen":
+			# (2, 3)
+			self.position = {'x': 2.000, 'y': 3.000}
+			self.quaternion = {'r1': 0.000, 'r2': 0.000, 'r3': 0.995, 'r4': 0.102}
+		elif self.getDestination == "living room":
+			# (0, -2)
+			self.position = {'x': 0.000, 'y': -2.000}
+			self.quaternion = {'r1': 0.000, 'r2': 0.000, 'r3': -0.234, 'r4': 0.972}
+		else:
+			# (0, 0)
+			self.position = {'x': 0.000, 'y': 0.000}
+			self.quaternion = {'r1': 0.000, 'r2': 0.000, 'r3': 0.000, 'r4': 1.000}
+		return (self.getDestination, self.position, self.quaternion)
+
+	def postureInfo(self):
+		self.setPosture = raw_input("\nWhat posture would you prefer? (up straight / small incline / large incline) ")
+		if self.setPosture in self.postures:
+			self.getPosture = self.setPosture;
+			print "Yes, you prefer %s" %self.getPosture
+		else:
+			self.getPosture = "up straight";
+			print "Invalid posture, I will get you default posture %s" %self.getPosture
+
+		if self.getPosture == "up straight":
+			self.angleBack = 0.0;
+			self.angleFeet = 0.0;
+		elif self.getPosture == "small incline":
+			self.angleBack = -0.1;
+			self.angleFeet = 0.0;
+		elif self.getPosture == "large incline":
+			self.angleBack = -0.2;
+			self.angleFeet = -0.5;
+		return (self.angleBack, self.angleFeet)
+
+if __name__ == '__main__':
+	try:
+		# inital node
+		rospy.init_node('Home_service', anonymous=False)
+		navigator = GoToPose()
+		posture = GoToPosture()
+		info = CollectInfo()
+		# collect user infomation
+		user = info.userInfo()
+
+		# while loop
+		while not rospy.is_shutdown():
+			# collect destination
+			(destination, position, quaternion) = info.destinationInfo()
+			if destination == "Invalid destination":
+				continue
+			elif destination == "quit":
+				break
+			else:
+				# collect posture
+				(angleBack, angleFeet) = info.postureInfo()
+				# Activation to posture
+				posture.setPosture(angleBack, angleFeet)
+				# Activation to destination
+				print "\nWell, we will travel to %s" %destination
+				result = navigator.goto(position, quaternion)
+				if result:
+					print "We have arrived"
+				else:
+					print "Sorry, I missed the destination"
+
+				rospy.sleep(1)
+
+	except rospy.ROSInterruptException:
+		print "Good bye!"
+

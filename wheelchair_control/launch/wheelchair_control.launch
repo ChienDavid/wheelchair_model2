@@ -1,0 +1,23 @@
+<launch>
+
+  <!-- Load joint controller configurations from YAML file to parameter server -->
+  <rosparam file="$(find wheelchair_control)/config/wheelchair_control.yaml" command="load"/>
+
+  <!-- load the controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner"
+        respawn="false" output="screen" ns="/wheelchair_model" 
+        args="Seatback_JOINT_1_position_controller 
+              Footrest_JOINT_1_position_controller 
+              Stick_JOINT_position_controller 
+              joint_state_controller"/>
+
+  <!-- convert joint states to TF transforms for rviz, etc -->
+  <node name="robot_state" pkg="robot_state_publisher" type="robot_state_publisher"
+        respawn="false" output="screen">
+        <remap from="/joint_states" to="/wheelchair_model/joint_states" />
+  </node>
+
+  <!-- View robot in rviz -->
+  <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find wheelchair_description)/rviz/wheelchair.rviz"/-->
+
+</launch>

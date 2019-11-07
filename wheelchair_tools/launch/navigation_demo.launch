@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<launch>
+  <master auto="start"/>
+  <!-- Map server -->
+  <arg name="map_file" default="$(find wheelchair_tools)/maps/test1.yaml"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+  <!-- Problem: robot doesn't know its location relative to the map, that's why rviz doesn't show its location properly -->
+  <!-- Solution: place map frame at odometry frame (we add a static transform from /map to /odom) -->
+  <node pkg="tf" type="static_transform_publisher" name="map_odom_broadcaster"
+      args="0 0 0 0 0 0 map odom 10"/>
+
+  <!-- Localization -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <remap from="scan" to="laser/scan"/>
+    <param name="odom_frame_id" value="odom"/>
+    <param name="odom_model_type" value="diff-corrected"/>
+    <param name="base_frame_id" value="base"/>
+    <param name="update_min_d" value="0.5"/>
+    <param name="update_min_a" value="1.0"/>
+  </node>
+  <!--include file="$(find amcl)/examples/amcl_omni.launch"/-->
+  <!-- Move base -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+    <rosparam file="$(find  wheelchair_tools)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find  wheelchair_tools)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find  wheelchair_tools)/config/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find  wheelchair_tools)/config/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find  wheelchair_tools)/config/base_local_planner_params.yaml" command="load" />
+    
+    <remap from="cmd_vel" to="cmd_vel"/>
+    <remap from="odom" to="odom"/>
+    <remap from="scan" to="laser/scan"/>
+    <param name="move_base/DWAPlannerROS/yaw_goal_tolerance" value="0.5"/>
+    <param name="move_base/DWAPlannerROS/xy_goal_tolerance" value="0.5"/>
+  </node>
+
+  <!-- View robot in rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find wheelchair_tools)/rviz/chair_navigation.rviz" output="screen">
+      <remap from="initialpose"  to="initialpose"/>
+      <remap from="move_base_simple/goal"  to="move_base_simple/goal"/>
+  </node>
+
+</launch>
